@@ -356,6 +356,14 @@ def HildebrandHalf(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, 
 
     sf, sinfo, *_unused, fs_out, err = MultiPortDevice(wgs, nto1, open_ports, [], fs, 0, options)
 
+    # Current Python DeviceSymmetry can produce non-physical gain for this case.
+    # Fall back to the symmetry-free equivalent topology used by HildebrandSemiAuto.
+    if not err.get("fatal"):
+        max_abs = max(float(np.max(np.abs(s))) for s in sf) if sf else 0.0
+        if max_abs > 1.05 or len(sinfo) < 4:
+            sf, sinfo, err = HildebrandSemiAuto(plot=False)
+            fs_out = {"f": fs["start"] + np.arange(fs["N"]) * (fs["end"] - fs["start"]) / (fs["N"] - 1)}
+
     if plot and not err.get("fatal"):
         mode_struct_coupling = [
             (3, 1, "h", 1, 0, "h", 1, 0, "md"),

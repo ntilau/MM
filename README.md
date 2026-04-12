@@ -380,5 +380,5 @@ logic in `python/scripts.py`:
 
 - Pairs reference columns to MM traces by RMSE.
 - Preserves MM line colors for the paired reference traces.
-- Supports optional affine dB correction for `BifurcationH` to improve visual
+- Supports optional dB bias correction for `BifurcationH` to improve visual
     parity.

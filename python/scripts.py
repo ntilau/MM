@@ -7,8 +7,8 @@ This module mirrors the MATLAB top-level scripts and keeps the same workflow:
 3) Optionally draw MATLAB-style parity plots.
 
 For bifurcation benchmarks, CSV references can be overlaid on top of MM traces.
-The overlay path supports curve pairing, color matching, and optional dB bias or
-affine correction to improve visual agreement.
+The overlay path supports curve pairing, color matching, and optional dB bias
+to improve visual agreement.
 """
 
 import itertools
@@ -44,7 +44,6 @@ def _overlay_reference_csv(
     mm_traces_db: list[np.ndarray] | None = None,
     f_hz: np.ndarray | None = None,
     apply_db_bias: bool = False,
-    apply_db_affine: bool = False,
 ) -> None:
     """Overlay reference traces from a repo-level CSV onto the current axes.
 
@@ -56,9 +55,8 @@ def _overlay_reference_csv(
     - column-to-MM line remapping (pass ``match_line_indices``),
     - automatic remapping from RMSE pairing (pass MM traces and frequency).
 
-    Optional post-alignment is applied in dB-space:
+    Optional post-alignment is applied in dB-space with a constant bias:
     - bias mode: ``y_ref + b``
-    - affine mode: ``a * y_ref + b`` with slope clipping for stability
     """
     try:
         import matplotlib.pyplot as plt
@@ -89,29 +87,12 @@ def _overlay_reference_csv(
     for i, col in enumerate(use_cols):
         line_idx = match_line_indices[i] if match_line_indices is not None and i < len(match_line_indices) else i
         y = ref[:, col]
-        if (
-            (apply_db_bias or apply_db_affine)
-            and mm_traces_db is not None
-            and f_hz is not None
-            and 0 <= line_idx < len(mm_traces_db)
-        ):
+        if apply_db_bias and mm_traces_db is not None and f_hz is not None and 0 <= line_idx < len(mm_traces_db):
             y_interp = np.interp(np.asarray(f_hz), x, y)
             mm = np.asarray(mm_traces_db[line_idx], dtype=float)
-            if apply_db_affine:
-                # Fit y_mm ~= a * y_ref + b with mild slope clipping for stability.
-                y0 = y_interp - float(np.mean(y_interp))
-                denom = float(np.dot(y0, y0))
-                if denom > np.finfo(float).tiny:
-                    a = float(np.dot(y0, mm - float(np.mean(mm))) / denom)
-                    a = float(np.clip(a, 0.5, 1.5))
-                else:
-                    a = 1.0
-                b = float(np.mean(mm - a * y_interp))
-                y = a * y + b
-            else:
-                # Fit a constant dB offset so each reference curve best overlaps its MM pair.
-                bias = float(np.mean(mm - y_interp))
-                y = y + bias
+            # Fit a constant dB offset so each reference curve best overlaps its MM pair.
+            bias = float(np.mean(mm - y_interp))
+            y = y + bias
         if 0 <= line_idx < len(mm_colors):
             ax.plot(x, y, linestyle=":", color=mm_colors[line_idx])
         else:
@@ -235,8 +216,9 @@ def _best_reference_overlay_mapping(
 ) -> tuple[list[int], list[int]]:
     """Return (series_cols, line_indices) for best global MM↔reference pairing.
 
-    The score is shape-aware: traces are mean-centered before RMSE, with an
-    extra decorrelation penalty to discourage wrong-but-close level matches.
+    The score is best-fit aware: each MM/reference pair is first aligned with
+    its optimal constant dB bias, then evaluated by residual RMSE with an extra
+    decorrelation penalty to discourage wrong-but-close matches.
 
     Returns:
     - ``series_cols``: selected/reordered reference CSV columns
@@ -262,12 +244,17 @@ def _best_reference_overlay_mapping(
         mm_std = float(np.std(mm_c))
         for rj in range(n):
             rr = np.asarray(ref_interp[rj], dtype=float)
-            rr_c = rr - float(np.mean(rr))
+
+            # Best constant-bias fit for this pair: mm ~= rr + b.
+            bias = float(np.mean(mm - rr))
+            rr_fit = rr + bias
+            fit_rmse = float(np.sqrt(np.mean((mm - rr_fit) ** 2)))
+
+            rr_c = rr_fit - float(np.mean(rr_fit))
             rr_std = float(np.std(rr_c))
-            rmse_shape = float(np.sqrt(np.mean((mm_c - rr_c) ** 2)))
             denom = max(mm_std * rr_std, tiny)
             corr = float(np.clip(np.mean(mm_c * rr_c) / denom, -1.0, 1.0))
-            cost[li, rj] = rmse_shape + 6.0 * (1.0 - corr)
+            cost[li, rj] = fit_rmse + 2.0 * (1.0 - corr)
 
     chosen_idx = _solve_min_cost_assignment(cost)
     chosen_cols = [candidate_cols[j] for j in chosen_idx]
@@ -451,14 +438,24 @@ def BifurcationH(plot: bool = True) -> ScriptResult:
         ]
         GSMDraw(np.asarray(fs_out["f"]), sf, sinfo, mode_struct, flag=1, ylabel="Amplitude [dB]",
             ylim=(-70.0, 0.0), show=False)
-        # Compute a global shape-aware one-to-one pairing for all seven curves.
+        # Compute a global best-fit pairing, then append any remaining
+        # reference columns so all available HFSS curves are overlaid.
         mm_traces_db = _extract_mode_traces_db(sf, sinfo, mode_struct)
+        ref_h = np.loadtxt(_PROJECT_ROOT / HFSS_H_CSV, delimiter=",")
+        all_ref_cols = list(range(1, ref_h.shape[1]))
         paired_cols, paired_lines = _best_reference_overlay_mapping(
-            np.loadtxt(_PROJECT_ROOT / HFSS_H_CSV, delimiter=","),
+            ref_h,
             np.asarray(fs_out["f"]),
             mm_traces_db,
-            [1, 2, 3, 4, 5, 6, 7],
+            all_ref_cols,
         )
+
+        # Keep best-fit matched curves first, then draw unmatched references.
+        if len(paired_cols) < len(all_ref_cols):
+            paired_set = set(paired_cols)
+            remaining_cols = [col for col in all_ref_cols if col not in paired_set]
+            paired_cols = paired_cols + remaining_cols
+
         _overlay_reference_csv(
             HFSS_H_CSV,
             ["k:", "r:", "g:", "b:", "y:", "m:", "c:"],
@@ -466,7 +463,7 @@ def BifurcationH(plot: bool = True) -> ScriptResult:
             match_line_indices=paired_lines,
             mm_traces_db=mm_traces_db,
             f_hz=np.asarray(fs_out["f"]),
-            apply_db_affine=True,
+            apply_db_bias=True,
         )
         plt.show()
 

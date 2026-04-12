@@ -9,7 +9,7 @@ b       = 0.009525;   % waveguide full height [m]
 l       = 0.01;       % section length [m]
 Nmodes  = floor(10*sqrt(2*a*b)/(c/(25*10^9)) + 0.5);
 
-%% Defines the TwoPortDevices
+%% Define TwoPortDevices
 WGS1{1}.D{1}.a = a;
 WGS1{1}.D{1}.b = b;
 WGS1{1}.D{1}.Nmodes = Nmodes;
@@ -34,7 +34,7 @@ WGS1{3}.D{1}.xo = 0;
 WGS1{3}.D{1}.yo = 0;
 WGS1{3}.D{1}.zo = 0;
 
-%% Defines the Nto1Connections
+%% Define Nto1Connections
 Nto1{1}.SideOne{1}.TwoPortDeviceIndex = 1;
 Nto1{1}.SideOne{1}.TwoPortDevicePort = 2;
 Nto1{1}.SideOne{2}.TwoPortDeviceIndex = 2;
@@ -43,7 +43,7 @@ Nto1{1}.SideTwo{1}.TwoPortDeviceIndex = 3;
 Nto1{1}.SideTwo{1}.TwoPortDevicePort = 1;
 Nto1{1}.zo = 0;
 
-%% Defines the Opened Ports
+%% Define Open Ports
 OpenPorts{1}.TwoPortDeviceIndex = 1;
 OpenPorts{1}.TwoPortDevicePort = 1;
 OpenPorts{2}.TwoPortDeviceIndex = 2;
@@ -51,15 +51,15 @@ OpenPorts{2}.TwoPortDevicePort = 1;
 OpenPorts{3}.TwoPortDeviceIndex = 3;
 OpenPorts{3}.TwoPortDevicePort = 2;
 
-%% Defines the Frequency Sweep
+%% Define Frequency Sweep
 FS.start = 10*10^9;
 FS.end   = 25*10^9;
 FS.N     = 61;
 
-%% Defines Connected Ports
+%% Define Connected Ports
 ConnectedPorts = {};
 
-%% Defines Options
+%% Define Options
 Options.DeviceSymmetry.Use = 0;
 Options.DeviceSymmetry.Side = 2;
 Options.Connections = 0;
@@ -68,7 +68,7 @@ Options.Connections = 0;
 % 2 = Explodes parts; 1 = shows united parts; 0 = no plot
 DevicePlotType = 0;
 
-%% Calculus
+%% Solve
 [ Sf, Sinfo, WGS1, Nto1, ConnectedPorts, FS, Error ] = ...
     MultiPortDevice( WGS1, Nto1, OpenPorts, ConnectedPorts, FS, DevicePlotType, Options);
 

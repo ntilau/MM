@@ -17,12 +17,12 @@ W1 = 1.4*0.0254;
 W2 = 1.142*0.0254;
 W3 = 1.06*0.0254;
 
-%% Defines the Frequency Sweep
+%% Define Frequency Sweep
 FS.start = 13*10^9;
 FS.end   = 15*10^9;
 FS.N     = 51;
 
-%% Nbr of modes for calculus accuracy
+%% Number of modes for calculation accuracy
 Lambda = 299792458/FS.end;
 Nmodes = floor(10*sqrt(W1*b)/Lambda + 0.5); %W1 is the highest value
 %Nmodes = 12;
@@ -180,7 +180,7 @@ WGS{6}.D{2}.xo = -(a/2+t/2);
 WGS{6}.D{2}.yo = 0.0;
 WGS{6}.D{2}.zo = WGS{6}.D{1}.l;
 
-%% Defines the Nto1Connections
+%% Define Nto1Connections
 Nto1{1}.SideOne{1}.TwoPortDeviceIndex = 1;
 Nto1{1}.SideOne{1}.TwoPortDevicePort = 2;
 Nto1{1}.SideOne{2}.TwoPortDeviceIndex = 2;
@@ -197,7 +197,7 @@ Nto1{2}.SideTwo{2}.TwoPortDeviceIndex = 6;
 Nto1{2}.SideTwo{2}.TwoPortDevicePort = 1;
 Nto1{2}.zo = 0.07;
 
-%% Defines the Opened Ports
+%% Define Open Ports
 OpenPorts{1}.TwoPortDeviceIndex = 1;
 OpenPorts{1}.TwoPortDevicePort = 1;
 OpenPorts{2}.TwoPortDeviceIndex = 2;
@@ -207,11 +207,11 @@ OpenPorts{3}.TwoPortDevicePort = 2;
 OpenPorts{4}.TwoPortDeviceIndex = 6;
 OpenPorts{4}.TwoPortDevicePort = 2;
 
-%% Defines Connected Ports
+%% Define Connected Ports
 ConnectedPorts{1}.TwoPortDeviceIndex = [3, 4];
 ConnectedPorts{1}.TwoPortDevicePort = [2, 1];
 
-%% Defines Options
+%% Define Options
 % Overall device's symmetry (enable and side)
 Options.DeviceSymmetry.Use = 0;
 Options.DeviceSymmetry.Side = 2;
@@ -220,7 +220,7 @@ Options.DeviceSymmetry.Side = 2;
 % 2 = Explodes parts; 1 = shows united parts; 0 = no plot
 DevicePlotType = 2;
 
-%% Calculus
+%% Solve
 [ Sf, Sinfo, WGS, Nto1, ConnectedPorts, FS, Error ] = ...
     MultiPortDevice( WGS, Nto1, OpenPorts, ConnectedPorts, FS, DevicePlotType, Options);
 

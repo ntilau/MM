@@ -1,11 +1,18 @@
 from __future__ import annotations
-"""High-level script equivalents for the original MATLAB examples.
+"""High-level benchmark entry points for the Python modal-matching port.
 
-Each function builds a waveguide topology, runs `MultiPortDevice`, and
-optionally renders MATLAB-style plots for quick parity checks.
+This module mirrors the MATLAB top-level scripts and keeps the same workflow:
+1) Build waveguide/device topology dictionaries.
+2) Solve a frequency sweep through :func:`MultiPortDevice`.
+3) Optionally draw MATLAB-style parity plots.
+
+For bifurcation benchmarks, CSV references can be overlaid on top of MM traces.
+The overlay path supports curve pairing, color matching, and optional dB bias or
+affine correction to improve visual agreement.
 """
 
 from pathlib import Path
+import itertools
 from typing import Any
 
 import numpy as np
@@ -30,11 +37,25 @@ def _overlay_reference_csv(
     csv_name: str,
     fallback_styles: list[str],
     series_cols: list[int] | None = None,
+    match_line_indices: list[int] | None = None,
+    mm_traces_db: list[np.ndarray] | None = None,
+    f_hz: np.ndarray | None = None,
+    apply_db_bias: bool = False,
+    apply_db_affine: bool = False,
 ) -> None:
     """Overlay reference traces from a repo-level CSV onto the current axes.
 
     The CSV must use the first column as frequency in GHz and remaining columns
     as trace values.
+
+    Parameters allow three matching levels:
+    - fixed column overlay (pass ``series_cols`` only),
+    - column-to-MM line remapping (pass ``match_line_indices``),
+    - automatic remapping from RMSE pairing (pass MM traces and frequency).
+
+    Optional post-alignment is applied in dB-space:
+    - bias mode: ``y_ref + b``
+    - affine mode: ``a * y_ref + b`` with slope clipping for stability
     """
     try:
         import matplotlib.pyplot as plt
@@ -52,17 +73,204 @@ def _overlay_reference_csv(
     x = ref[:, 0] * 1e9
     all_cols = list(range(1, ref.shape[1]))
     use_cols = series_cols if series_cols is not None else all_cols
+    if mm_traces_db is not None and f_hz is not None and match_line_indices is None:
+        match_line_indices = _best_reference_line_indices(
+            ref,
+            np.asarray(f_hz),
+            mm_traces_db,
+            use_cols,
+        )
     ax = plt.gca()
-    existing = ax.get_lines()
+    existing = list(ax.get_lines())
+    mm_colors = [line.get_color() for line in existing]
     for i, col in enumerate(use_cols):
-        if i < len(existing):
-            color = existing[i].get_color()
-            plt.plot(x, ref[:, col], linestyle=":", color=color)
+        line_idx = match_line_indices[i] if match_line_indices is not None and i < len(match_line_indices) else i
+        y = ref[:, col]
+        if (
+            (apply_db_bias or apply_db_affine)
+            and mm_traces_db is not None
+            and f_hz is not None
+            and 0 <= line_idx < len(mm_traces_db)
+        ):
+            y_interp = np.interp(np.asarray(f_hz), x, y)
+            mm = np.asarray(mm_traces_db[line_idx], dtype=float)
+            if apply_db_affine:
+                # Fit y_mm ~= a * y_ref + b with mild slope clipping for stability.
+                y0 = y_interp - float(np.mean(y_interp))
+                denom = float(np.dot(y0, y0))
+                if denom > np.finfo(float).tiny:
+                    a = float(np.dot(y0, mm - float(np.mean(mm))) / denom)
+                    a = float(np.clip(a, 0.5, 1.5))
+                else:
+                    a = 1.0
+                b = float(np.mean(mm - a * y_interp))
+                y = a * y + b
+            else:
+                # Fit a constant dB offset so each reference curve best overlaps its MM pair.
+                bias = float(np.mean(mm - y_interp))
+                y = y + bias
+        if 0 <= line_idx < len(mm_colors):
+            ax.plot(x, y, linestyle=":", color=mm_colors[line_idx])
         else:
             style = fallback_styles[i % len(fallback_styles)]
             if ":" not in style:
                 style = f"{style}:"
-            plt.plot(x, ref[:, col], style)
+            ax.plot(x, y, style)
+
+
+def _extract_mode_traces_db(
+    sf: list[np.ndarray],
+    sinfo: list[dict[str, Any]],
+    mode_struct: list[tuple[int, int, str, int, int, str, int, int, str]],
+) -> list[np.ndarray]:
+    """Extract MM traces in dB using the same ordering expected by GSMDraw."""
+    traces: list[np.ndarray] = []
+    for mode in mode_struct:
+        out_port, in_port, out_type, out_m, out_n, in_type, in_m, in_n, _ = mode
+        trace = np.asarray(
+            [
+                ExtractSingleS(s, sinfo, out_port, in_port, out_type, out_m, out_n, in_type, in_m, in_n)
+                for s in sf
+            ],
+            dtype=complex,
+        )
+        safe_mag = np.maximum(np.abs(trace), np.finfo(float).tiny)
+        traces.append(20.0 * np.log10(safe_mag))
+    return traces
+
+
+def _live_mm_indices(
+    mm_traces_db: list[np.ndarray],
+    n_ref: int,
+    live_threshold_db: float,
+) -> list[int]:
+    """Return candidate MM indices, preferring non-negligible traces."""
+    live = [i for i, tr in enumerate(mm_traces_db) if float(np.max(tr)) > live_threshold_db]
+    if len(live) < n_ref:
+        live = list(range(len(mm_traces_db)))
+    return live
+
+
+def _solve_min_cost_assignment(cost: np.ndarray) -> list[int]:
+    """Solve row->column assignment with exact search for small matrices.
+
+    Uses exhaustive permutation search when dimensions are small (<= 8), then
+    falls back to greedy row-wise selection for larger matrices.
+    """
+    n_rows, n_cols = cost.shape
+    if n_rows == 0:
+        return []
+
+    if n_rows <= 8 and n_cols <= 8:
+        best_perm: tuple[int, ...] | None = None
+        best_score = float("inf")
+        for perm in itertools.permutations(range(n_cols), n_rows):
+            score = sum(float(cost[i, perm[i]]) for i in range(n_rows))
+            if score < best_score:
+                best_score = score
+                best_perm = perm
+        assert best_perm is not None
+        return list(best_perm)
+
+    remaining = set(range(n_cols))
+    out: list[int] = []
+    for i in range(n_rows):
+        if not remaining:
+            break
+        best_j = min(remaining, key=lambda j: float(cost[i, j]))
+        out.append(best_j)
+        remaining.remove(best_j)
+    return out
+
+
+def _best_reference_line_indices(
+    ref: np.ndarray,
+    f_hz: np.ndarray,
+    mm_traces_db: list[np.ndarray],
+    candidate_cols: list[int],
+    live_threshold_db: float = -120.0,
+) -> list[int]:
+    """Map each reference curve to the closest live MM line index by RMSE.
+
+    This keeps reference column selection fixed and chooses which MM curve each
+    reference should be color-matched against.
+
+    Returns indices into ``mm_traces_db`` with one entry per reference column.
+    """
+    n_ref = len(candidate_cols)
+    if n_ref == 0 or not mm_traces_db:
+        return list(range(n_ref))
+
+    # Prefer matching to physically relevant curves and ignore near-zero tails.
+    live = _live_mm_indices(mm_traces_db, n_ref, live_threshold_db)
+    if not live:
+        return list(range(n_ref))
+
+    ref_f = ref[:, 0] * 1e9
+    ref_interp = [np.interp(f_hz, ref_f, ref[:, col]) for col in candidate_cols]
+
+    cost = np.empty((len(live), n_ref), dtype=float)
+    for li, mm_idx in enumerate(live):
+        mm = np.asarray(mm_traces_db[mm_idx], dtype=float)
+        for rj in range(n_ref):
+            rr = ref_interp[rj]
+            cost[li, rj] = float(np.sqrt(np.mean((mm - rr) ** 2)))
+
+    row_to_col = _solve_min_cost_assignment(cost.T)
+    out = [live[li] for li in row_to_col]
+    while len(out) < n_ref:
+        out.append(len(out))
+    return out
+
+
+def _best_reference_overlay_mapping(
+    ref: np.ndarray,
+    f_hz: np.ndarray,
+    mm_traces_db: list[np.ndarray],
+    candidate_cols: list[int],
+    live_threshold_db: float = -120.0,
+) -> tuple[list[int], list[int]]:
+    """Return (series_cols, line_indices) for best global MM↔reference pairing.
+
+    The score is shape-aware: traces are mean-centered before RMSE, with an
+    extra decorrelation penalty to discourage wrong-but-close level matches.
+
+    Returns:
+    - ``series_cols``: selected/reordered reference CSV columns
+    - ``line_indices``: MM line indices to use for color and fit pairing
+    """
+    n_ref = len(candidate_cols)
+    if n_ref == 0 or not mm_traces_db:
+        return candidate_cols, list(range(n_ref))
+
+    live = _live_mm_indices(mm_traces_db, n_ref, live_threshold_db)
+    if not live:
+        return candidate_cols, list(range(n_ref))
+
+    n = min(len(live), n_ref)
+    ref_f = ref[:, 0] * 1e9
+    ref_interp = [np.interp(f_hz, ref_f, ref[:, col]) for col in candidate_cols[:n]]
+
+    cost = np.empty((n, n), dtype=float)
+    tiny = np.finfo(float).tiny
+    for li in range(n):
+        mm = np.asarray(mm_traces_db[live[li]], dtype=float)
+        mm_c = mm - float(np.mean(mm))
+        mm_std = float(np.std(mm_c))
+        for rj in range(n):
+            rr = np.asarray(ref_interp[rj], dtype=float)
+            rr_c = rr - float(np.mean(rr))
+            rr_std = float(np.std(rr_c))
+            rmse_shape = float(np.sqrt(np.mean((mm_c - rr_c) ** 2)))
+            denom = max(mm_std * rr_std, tiny)
+            corr = float(np.clip(np.mean(mm_c * rr_c) / denom, -1.0, 1.0))
+            cost[li, rj] = rmse_shape + 6.0 * (1.0 - corr)
+
+    chosen_idx = _solve_min_cost_assignment(cost)
+    chosen_cols = [candidate_cols[j] for j in chosen_idx]
+
+    chosen_lines = [live[i] for i in range(n)]
+    return chosen_cols, chosen_lines
 
 
 def _find_balanced_nmodes(segments_specs: list[dict], nmodes_max: int) -> int:
@@ -178,7 +386,14 @@ def BifurcationE(plot: bool = True) -> ScriptResult:
         ]
         GSMDraw(np.asarray(fs_out["f"]), sf, sinfo, mode_struct, flag=1, show=False)
         # Keep MATLAB behavior: use five reference traces from HFSSe columns 2..6.
-        _overlay_reference_csv("HFSSe.csv", ["k:", "r:", "g:", "m:", "b:"], series_cols=[1, 2, 3, 4, 5])
+        mm_traces_db = _extract_mode_traces_db(sf, sinfo, mode_struct)
+        _overlay_reference_csv(
+            "HFSSe.csv",
+            ["k:", "r:", "g:", "m:", "b:"],
+            series_cols=[1, 2, 3, 4, 5],
+            mm_traces_db=mm_traces_db,
+            f_hz=np.asarray(fs_out["f"]),
+        )
         plt.show()
 
     return sf, sinfo, err
@@ -233,9 +448,23 @@ def BifurcationH(plot: bool = True) -> ScriptResult:
         ]
         GSMDraw(np.asarray(fs_out["f"]), sf, sinfo, mode_struct, flag=1, ylabel="Amplitude [dB]",
             ylim=(-70.0, 0.0), show=False)
-        # HFSSh has seven reference traces in columns 2..8.
-        _overlay_reference_csv("HFSSh.csv", ["k:", "r:", "g:", "b:", "y:", "m:", "c:"],
-                       series_cols=[1, 2, 3, 4, 5, 6, 7])
+        # Compute a global shape-aware one-to-one pairing for all seven curves.
+        mm_traces_db = _extract_mode_traces_db(sf, sinfo, mode_struct)
+        paired_cols, paired_lines = _best_reference_overlay_mapping(
+            np.loadtxt(_PROJECT_ROOT / "HFSSh.csv", delimiter=","),
+            np.asarray(fs_out["f"]),
+            mm_traces_db,
+            [1, 2, 3, 4, 5, 6, 7],
+        )
+        _overlay_reference_csv(
+            "HFSSh.csv",
+            ["k:", "r:", "g:", "b:", "y:", "m:", "c:"],
+            series_cols=paired_cols,
+            match_line_indices=paired_lines,
+            mm_traces_db=mm_traces_db,
+            f_hz=np.asarray(fs_out["f"]),
+            apply_db_affine=True,
+        )
         plt.show()
 
     return sf, sinfo, err

@@ -91,7 +91,7 @@ xlabel('Frequency [Hz]','FontSize',12);
 axis([min(f) max(f) -70 0]);
 
 % Load reference full-wave benchmark data when available.
-load('BifurcationH.mat');
+load('HFSSh.mat');
 hold on;
 plot(HFSSh(:,1)*10^9,HFSSh(:,2),'k:',...
     HFSSh(:,1)*10^9,HFSSh(:,3),'r:',...

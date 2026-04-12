@@ -1,7 +1,9 @@
 from __future__ import annotations
+"""Small CLI for running the Python modal-matching benchmark scripts."""
 
 import argparse
 import sys
+from typing import Callable
 
 from mm_port.scripts import (
     BifurcationE,
@@ -12,46 +14,47 @@ from mm_port.scripts import (
     Riblet,
 )
 
+ScriptFn = Callable[[bool], tuple[list, list, dict]]
+
+SCRIPT_ALIASES = {
+    "bifurcatione": "BifurcationE",
+    "bifurcationh": "BifurcationH",
+    "hildebrandhalf": "HildebrandHalf",
+    "hilderbrandhalf": "HildebrandHalf",
+    "hildebrandsemiauto": "HildebrandSemiAuto",
+    "hilderbrandsemiauto": "HildebrandSemiAuto",
+    "hildebrandfull": "HildebrandFull",
+    "hilderbrandfull": "HildebrandFull",
+    "riblet": "Riblet",
+}
+
+SCRIPT_RUNNERS: dict[str, ScriptFn] = {
+    "BifurcationE": BifurcationE,
+    "BifurcationH": BifurcationH,
+    "HildebrandHalf": HildebrandHalf,
+    "HildebrandSemiAuto": HildebrandSemiAuto,
+    "HildebrandFull": HildebrandFull,
+    "Riblet": Riblet,
+}
+
 
 def main() -> None:
+    """Parse CLI arguments, resolve aliases, run one script, and print summary."""
     parser = argparse.ArgumentParser(description="Run pure-Python MM scripts")
-    script_aliases = {
-        "bifurcatione": "BifurcationE",
-        "bifurcationh": "BifurcationH",
-        "hildebrandhalf": "HildebrandHalf",
-        "hilderbrandhalf": "HildebrandHalf",
-        "hildebrandsemiauto": "HildebrandSemiAuto",
-        "hilderbrandsemiauto": "HildebrandSemiAuto",
-        "hildebrandfull": "HildebrandFull",
-        "hilderbrandfull": "HildebrandFull",
-        "riblet": "Riblet",
-    }
     parser.add_argument("script", help="Script to run")
     parser.add_argument("--no-plot", action="store_true", help="Disable plotting")
     args = parser.parse_args()
 
     script_key = args.script.lower()
-    if script_key not in script_aliases:
-        allowed = ", ".join(sorted(script_aliases))
+    if script_key not in SCRIPT_ALIASES:
+        allowed = ", ".join(sorted(SCRIPT_ALIASES))
         print(f"Unknown script '{args.script}'. Allowed values: {allowed}", file=sys.stderr)
         raise SystemExit(2)
 
     plot = not args.no_plot
-    script = script_aliases[script_key]
-    if script == "BifurcationE":
-        sf, sinfo, err = BifurcationE(plot=plot)
-    elif script == "BifurcationH":
-        sf, sinfo, err = BifurcationH(plot=plot)
-    elif script == "HildebrandHalf":
-        sf, sinfo, err = HildebrandHalf(plot=plot)
-    elif script == "HildebrandSemiAuto":
-        sf, sinfo, err = HildebrandSemiAuto(plot=plot)
-    elif script == "HildebrandFull":
-        sf, sinfo, err = HildebrandFull(plot=plot)
-    elif script == "Riblet":
-        sf, sinfo, err = Riblet(plot=plot)
-    else:
-        sf, sinfo, err = BifurcationE(plot=plot)
+    script_name = SCRIPT_ALIASES[script_key]
+    script_runner = SCRIPT_RUNNERS[script_name]
+    sf, sinfo, err = script_runner(plot=plot)
 
     print(f"Computed {len(sf)} frequency points, {len(sinfo)} ports, fatal={err.get('fatal')}")
 

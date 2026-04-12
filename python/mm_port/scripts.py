@@ -1,4 +1,9 @@
 from __future__ import annotations
+"""High-level script equivalents for the original MATLAB examples.
+
+Each function builds a waveguide topology, runs `MultiPortDevice`, and
+optionally renders MATLAB-style plots for quick parity checks.
+"""
 
 from pathlib import Path
 from typing import Any
@@ -9,6 +14,16 @@ from .core import C0, ExtractSingleS, GSMDraw, MultiPortDevice, OrderModes
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ModeSpec = tuple[int, int, str, int, int, str, int, int]
+ScriptResult = tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any]]
+
+
+def _uniform_frequency_axis(fs: dict[str, float | int]) -> np.ndarray:
+    """Build a linearly spaced frequency axis from a MATLAB-style `FS` dict."""
+    n = int(fs["N"])
+    if n <= 1:
+        return np.asarray([float(fs["start"])], dtype=float)
+    return np.linspace(float(fs["start"]), float(fs["end"]), n, dtype=float)
 
 
 def _overlay_reference_csv(
@@ -16,6 +31,11 @@ def _overlay_reference_csv(
     fallback_styles: list[str],
     series_cols: list[int] | None = None,
 ) -> None:
+    """Overlay reference traces from a repo-level CSV onto the current axes.
+
+    The CSV must use the first column as frequency in GHz and remaining columns
+    as trace values.
+    """
     try:
         import matplotlib.pyplot as plt
     except Exception:
@@ -63,13 +83,14 @@ def _draw_relative_phase(
     f: np.ndarray,
     sf: list[np.ndarray],
     sinfo: list[dict[str, Any]],
-    mode_a: tuple[int, int, str, int, int, str, int, int],
-    mode_b: tuple[int, int, str, int, int, str, int, int],
+    mode_a: ModeSpec,
+    mode_b: ModeSpec,
     ylim: tuple[float, float] | None = None,
 ) -> None:
+    """Plot unwrapped relative phase between two extracted S-parameter modes."""
     import matplotlib.pyplot as plt
 
-    def _extract(mode: tuple[int, int, str, int, int, str, int, int]) -> np.ndarray:
+    def _extract(mode: ModeSpec) -> np.ndarray:
         out_port, in_port, out_type, out_m, out_n, in_type, in_m, in_n = mode
         return np.asarray(
             [
@@ -104,7 +125,8 @@ def _draw_relative_phase(
     plt.show()
 
 
-def BifurcationE(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any]]:
+def BifurcationE(plot: bool = True) -> ScriptResult:
+    """Run and optionally plot the E-plane bifurcation benchmark."""
     a = 0.01905
     b = 0.009525
     nmodes = _find_balanced_nmodes(
@@ -162,7 +184,8 @@ def BifurcationE(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, An
     return sf, sinfo, err
 
 
-def BifurcationH(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any]]:
+def BifurcationH(plot: bool = True) -> ScriptResult:
+    """Run and optionally plot the H-plane bifurcation benchmark."""
     a = 0.01905
     b = 0.009525
     length = 0.01
@@ -218,7 +241,8 @@ def BifurcationH(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, An
     return sf, sinfo, err
 
 
-def Riblet(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any]]:
+def Riblet(plot: bool = True) -> ScriptResult:
+    """Run and optionally plot the Riblet coupler benchmark."""
     C = C0
     a = 0.75 * 0.0254
     b = 0.375 * 0.0254
@@ -287,7 +311,13 @@ def Riblet(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, Any]], d
     return sf, sinfo, err
 
 
-def HildebrandHalf(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any]]:
+def HildebrandHalf(plot: bool = True) -> ScriptResult:
+    """Run and optionally plot the half Hildebrand coupler with robust fallback.
+
+    The intended path mirrors MATLAB's DeviceSymmetry setup. If that path yields
+    non-physical amplitudes in the current Python port, this function falls back
+    to the symmetry-free equivalent topology from `HildebrandSemiAuto`.
+    """
     C = C0
     a = 0.75 * 0.0254
     b = 0.375 * 0.0254
@@ -362,7 +392,7 @@ def HildebrandHalf(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, 
         max_abs = max(float(np.max(np.abs(s))) for s in sf) if sf else 0.0
         if max_abs > 1.05 or len(sinfo) < 4:
             sf, sinfo, err = HildebrandSemiAuto(plot=False)
-            fs_out = {"f": fs["start"] + np.arange(fs["N"]) * (fs["end"] - fs["start"]) / (fs["N"] - 1)}
+            fs_out = {"f": _uniform_frequency_axis(fs)}
 
     if plot and not err.get("fatal"):
         mode_struct_coupling = [
@@ -391,7 +421,8 @@ def HildebrandHalf(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, 
     return sf, sinfo, err
 
 
-def HildebrandSemiAuto(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any]]:
+def HildebrandSemiAuto(plot: bool = True) -> ScriptResult:
+    """Run and optionally plot the explicit (symmetry-free) Hildebrand model."""
     C = C0
     a = 0.75 * 0.0254
     b = 0.375 * 0.0254
@@ -513,7 +544,7 @@ def HildebrandSemiAuto(plot: bool = True) -> tuple[list[np.ndarray], list[dict[s
     return sf, sinfo, err
 
 
-def HildebrandFull(plot: bool = True) -> tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any]]:
+def HildebrandFull(plot: bool = True) -> ScriptResult:
     """Full Hildebrand coupler using explicit ConnectedPorts to join the two center-section halves.
 
     Mirrors the MATLAB HildebrandFull.m topology exactly:

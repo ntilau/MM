@@ -2,14 +2,28 @@ from __future__ import annotations
 
 import argparse
 
-from mm_port.scripts import BifurcationE, BifurcationH, HildebrandHalf, Riblet
+from mm_port.scripts import (
+    BifurcationE,
+    BifurcationH,
+    HildebrandFull,
+    HildebrandHalf,
+    HildebrandSemiAuto,
+    Riblet,
+)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run pure-Python MM scripts")
     parser.add_argument(
         "script",
-        choices=["BifurcationE", "BifurcationH", "HildebrandHalf", "Riblet"],
+        choices=[
+            "BifurcationE",
+            "BifurcationH",
+            "HildebrandHalf",
+            "HildebrandSemiAuto",
+            "HildebrandFull",
+            "Riblet",
+        ],
         help="Script to run",
     )
     parser.add_argument("--no-plot", action="store_true", help="Disable plotting")
@@ -22,6 +36,10 @@ def main() -> None:
         sf, sinfo, err = BifurcationH(plot=plot)
     elif args.script == "HildebrandHalf":
         sf, sinfo, err = HildebrandHalf(plot=plot)
+    elif args.script == "HildebrandSemiAuto":
+        sf, sinfo, err = HildebrandSemiAuto(plot=plot)
+    elif args.script == "HildebrandFull":
+        sf, sinfo, err = HildebrandFull(plot=plot)
     elif args.script == "Riblet":
         sf, sinfo, err = Riblet(plot=plot)
     else:

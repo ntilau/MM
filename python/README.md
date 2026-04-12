@@ -14,14 +14,18 @@ This folder contains a pure-Python port of the modal-matching solver API for the
 - Fully runnable in pure Python:
   - `BifurcationE`
   - `BifurcationH`
+- Plot parity with MATLAB benchmarks:
+  - Both bifurcation scripts can overlay `HFSSe.csv` / `HFSSh.csv` when plotting.
 - API coverage:
   - Every MATLAB `lib/*.m` has a Python counterpart module with the same function name.
 - Remaining work:
-  - Some advanced functions are present but marked `NotImplementedError` in `mm_port/core.py` (mainly drawing/validation and complex multi-topology paths).
+  - Some advanced functions are present but marked `NotImplementedError` in `mm_port/core.py` (notably `RelativePhaseDraw`).
 
 ## Run
 
 ```bash
 PYTHONPATH=python python python/run_mm_port.py BifurcationE --no-plot
 PYTHONPATH=python python python/run_mm_port.py BifurcationH --no-plot
+PYTHONPATH=python python python/run_mm_port.py HildebrandSemiAuto --no-plot
+PYTHONPATH=python python python/run_mm_port.py HildebrandFull --no-plot
 ```

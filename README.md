@@ -26,60 +26,61 @@ bifurcation benchmark scripts **BifurcationE** and **BifurcationH**.
 
 ```
 MM/
-├── lib/                  # Library of reusable MATLAB functions
-│   ├── MultiPortDevice.m         # Top-level solver entry point
-│   ├── MultiPortDeviceSolve.m    # Frequency-sweep engine
-│   ├── MultiPortDeviceValidate.m # Input validation
-│   ├── MultiPortDeviceTopology.m # Port topology builder
-│   ├── MultiPortDeviceDraw.m     # 3-D device visualisation
-│   ├── Nto1Junction.m            # N-to-1 junction scattering matrix
-│   ├── Nto1DeviceValidate.m      # Nto1 validation
-│   ├── Nto1DeviceDraw.m          # Nto1 visualisation
-│   ├── MultiStep.m               # Multi-section cascaded scattering matrix
-│   ├── SingleStep.m              # Single step scattering matrix
-│   ├── SingleCascade.m           # Two-step cascade with delay
-│   ├── Cascade.m                 # Full WaveGuideStructure cascade
-│   ├── CondenseGSM.m             # GSM condensation (Selleri method)
-│   ├── RenormalizeGSM.m          # GSM re-normalisation
-│   ├── Renormalize.m             # S-matrix re-normalisation
-│   ├── OrderModes.m              # Assign TE/TM mode indices per symmetry
-│   ├── EigenModes.m              # Compute kx, ky, kz eigenvalues
-│   ├── DelayMatrix.m             # Build diagonal phase-delay matrix
-│   ├── NormCoeff.m               # Compute mode normalisation constants
-│   ├── OneModeEigens.m           # Eigenvalues for a single (m,n) mode
-│   ├── OneModeNormCoeff.m        # Norm coefficient for a single mode
-│   ├── DgammaMatrices.m          # Diagonal γ matrices for a step
-│   ├── UMatrices.m               # U (unit-normalised) matrices for a step
-│   ├── MxxMatrices.m             # Mode-coupling integral matrices (Mhh/Mhe/Meh/Mee)
-│   ├── Integrals.m               # Overlap integrals between two modes
-│   ├── ExtractPortS.m            # Extract sub-block from a GSM
-│   ├── InsertPortS.m             # Insert sub-block into a GSM
-│   ├── ExtractSingleS.m          # Extract a single S-parameter by mode
-│   ├── FrequencySweepValidate.m  # Newer frequency sweep validator
-│   ├── DumpError.m               # Print error structure to stdout
-│   ├── GSMDraw.m                 # Plot GSM S-parameters vs frequency
-│   ├── RelativePhaseDraw.m       # Plot relative phase between two ports
-│   ├── ShowSegment.m             # 3-D plot of a single waveguide segment
-│   ├── WaveGuideCapDraw.m        # Low-level cap patch drawing
-│   ├── WaveGuideConnectionCapDraw.m # Cap at a connection interface
-│   ├── WaveGuideSegmentGetBounding.m    # Bounding-box of a segment
-│   ├── WaveGuideSegmentGetCrossSection.m # Cross-section parameters
-│   ├── TwoPortDeviceDraw.m       # 3-D plot of a TwoPortDevice
-│   ├── TwoPortDeviceGetPortSegment.m    # Retrieve port segment from device
-│   ├── TwoPortDeviceInsertPortSegment.m # Insert/replace a port segment
-│   ├── TwoPortDeviceValidate.m   # Validate and fill TwoPortDevice
-│   ├── ReverseWaveGuideStructure.m # Reverse segment order in a structure
-│   ├── NotInRect.m               # Geometry: point outside rectangles test
-│   └── WaveNumbers.m             # Compute propagation constants at k0
-├── BifurcationE.m        # E-plane bifurcation benchmark and plot script
-├── BifurcationH.m        # H-plane bifurcation benchmark and plot script
-├── HildebrandFull.m      # Full Hildebrand 4-port coupler
-├── HildebrandHalf.m      # Half-coupler (symmetry exploit)
-├── HildebrandSemiAuto.m  # Semi-automated Hildebrand assembly
-├── Riblet.m              # Riblet direct coupler
-├── BifurcationE.mat      # Reference full-wave data for BifurcationE
-├── BifurcationH.mat      # Reference full-wave data for BifurcationH
-└── old/                  # Archived older versions (not maintained)
+├── matlab/               # MATLAB scripts and solver library
+│   ├── lib/              # Library of reusable MATLAB functions
+│   │   ├── MultiPortDevice.m         # Top-level solver entry point
+│   │   ├── MultiPortDeviceSolve.m    # Frequency-sweep engine
+│   │   ├── MultiPortDeviceValidate.m # Input validation
+│   │   ├── MultiPortDeviceTopology.m # Port topology builder
+│   │   ├── MultiPortDeviceDraw.m     # 3-D device visualisation
+│   │   ├── Nto1Junction.m            # N-to-1 junction scattering matrix
+│   │   ├── Nto1DeviceValidate.m      # Nto1 validation
+│   │   ├── Nto1DeviceDraw.m          # Nto1 visualisation
+│   │   ├── MultiStep.m               # Multi-section cascaded scattering matrix
+│   │   ├── SingleStep.m              # Single step scattering matrix
+│   │   ├── SingleCascade.m           # Two-step cascade with delay
+│   │   ├── Cascade.m                 # Full WaveGuideStructure cascade
+│   │   ├── CondenseGSM.m             # GSM condensation (Selleri method)
+│   │   ├── RenormalizeGSM.m          # GSM re-normalisation
+│   │   ├── Renormalize.m             # S-matrix re-normalisation
+│   │   ├── OrderModes.m              # Assign TE/TM mode indices per symmetry
+│   │   ├── EigenModes.m              # Compute kx, ky, kz eigenvalues
+│   │   ├── DelayMatrix.m             # Build diagonal phase-delay matrix
+│   │   ├── NormCoeff.m               # Compute mode normalisation constants
+│   │   ├── OneModeEigens.m           # Eigenvalues for a single (m,n) mode
+│   │   ├── OneModeNormCoeff.m        # Norm coefficient for a single mode
+│   │   ├── DgammaMatrices.m          # Diagonal γ matrices for a step
+│   │   ├── UMatrices.m               # U (unit-normalised) matrices for a step
+│   │   ├── MxxMatrices.m             # Mode-coupling integral matrices (Mhh/Mhe/Meh/Mee)
+│   │   ├── Integrals.m               # Overlap integrals between two modes
+│   │   ├── ExtractPortS.m            # Extract sub-block from a GSM
+│   │   ├── InsertPortS.m             # Insert sub-block into a GSM
+│   │   ├── ExtractSingleS.m          # Extract a single S-parameter by mode
+│   │   ├── FrequencySweepValidate.m  # Newer frequency sweep validator
+│   │   ├── DumpError.m               # Print error structure to stdout
+│   │   ├── GSMDraw.m                 # Plot GSM S-parameters vs frequency
+│   │   ├── RelativePhaseDraw.m       # Plot relative phase between two ports
+│   │   ├── ShowSegment.m             # 3-D plot of a single waveguide segment
+│   │   ├── WaveGuideCapDraw.m        # Low-level cap patch drawing
+│   │   ├── WaveGuideConnectionCapDraw.m # Cap at a connection interface
+│   │   ├── WaveGuideSegmentGetBounding.m    # Bounding-box of a segment
+│   │   ├── WaveGuideSegmentGetCrossSection.m # Cross-section parameters
+│   │   ├── TwoPortDeviceDraw.m       # 3-D plot of a TwoPortDevice
+│   │   ├── TwoPortDeviceGetPortSegment.m    # Retrieve port segment from device
+│   │   ├── TwoPortDeviceInsertPortSegment.m # Insert/replace a port segment
+│   │   ├── TwoPortDeviceValidate.m   # Validate and fill TwoPortDevice
+│   │   ├── ReverseWaveGuideStructure.m # Reverse segment order in a structure
+│   │   ├── NotInRect.m               # Geometry: point outside rectangles test
+│   │   └── WaveNumbers.m             # Compute propagation constants at k0
+│   ├── BifurcationE.m        # E-plane bifurcation benchmark and plot script
+│   ├── BifurcationH.m        # H-plane bifurcation benchmark and plot script
+│   ├── HildebrandFull.m      # Full Hildebrand 4-port coupler
+│   ├── HildebrandHalf.m      # Half-coupler (symmetry exploit)
+│   ├── HildebrandSemiAuto.m  # Semi-automated Hildebrand assembly
+│   └── Riblet.m              # Riblet direct coupler
+├── HFSSe.csv                 # Reference full-wave data for BifurcationE
+├── HFSSh.csv                 # Reference full-wave data for BifurcationH
+└── old/                      # Archived older versions (not maintained)
 ```
 
 ---
@@ -141,22 +142,22 @@ unrecoverable problem; `DumpError` prints the content and returns a
 ## Getting started
 
 1. Open MATLAB and set the working directory to the repository root, or
-   run any project script directly — the first lines automatically add
-   `lib/` to the MATLAB path:
+   run any project script directly from `matlab/` — the first lines
+   automatically add `matlab/lib/` to the MATLAB path:
    ```matlab
    projectRoot = fileparts(mfilename('fullpath'));
    addpath(fullfile(projectRoot, 'lib'));
    ```
 2. Run any of the top-level scripts, e.g.:
    ```matlab
-   run HildebrandFull   % Hildebrand coupler, full structure
-   run Riblet           % Riblet coupler
-   run BifurcationE    % E-plane bifurcation benchmark
-   run BifurcationH    % H-plane bifurcation benchmark
+   run('matlab/HildebrandFull.m')   % Hildebrand coupler, full structure
+   run('matlab/Riblet.m')           % Riblet coupler
+   run('matlab/BifurcationE.m')     % E-plane bifurcation benchmark
+   run('matlab/BifurcationH.m')     % H-plane bifurcation benchmark
    ```
 3. Results are plotted automatically. The bifurcation scripts optionally
-   overlay benchmark data loaded from `BifurcationE.mat` and
-   `BifurcationH.mat`; the loaded variables remain `HFSS` and `HFSSh`
+   overlay benchmark data loaded from `HFSSe.csv` and
+   `HFSSh.csv`; the loaded variables remain `HFSSe` and `HFSSh`
    inside MATLAB, matching the historical plotting code.
 
 ---

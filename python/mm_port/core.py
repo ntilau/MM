@@ -741,7 +741,33 @@ def MultiPortDeviceSolve(
     topology: dict[str, Any],
     options: dict[str, Any],
 ) -> tuple[list[np.ndarray], list[dict[str, Any]], dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[Any]]:
-    del connected_ports
+    # Preprocess ConnectedPorts: cascade directly-connected device pairs by merging their D-lists
+    # and remapping all Nto1 and OpenPorts references from the consumed device to the host device.
+    for cp in connected_ports:
+        raw_idx = cp.get("TwoPortDeviceIndex", [])
+        raw_port = cp.get("TwoPortDevicePort", [])
+        if len(raw_idx) != 2 or len(raw_port) != 2:
+            continue
+        a_idx, b_idx = int(raw_idx[0]), int(raw_idx[1])
+        a_port, b_port = int(raw_port[0]), int(raw_port[1])
+        if a_port == 2 and b_port == 1:
+            merged_d = list(two_port_devices[a_idx - 1]["D"]) + list(two_port_devices[b_idx - 1]["D"])
+        elif a_port == 1 and b_port == 2:
+            merged_d = list(two_port_devices[b_idx - 1]["D"]) + list(two_port_devices[a_idx - 1]["D"])
+        else:
+            continue
+        two_port_devices[a_idx - 1]["D"] = merged_d
+        two_port_devices[b_idx - 1]["D"] = []
+        for conn in nto1_connections:
+            for s in conn.get("SideOne", []):
+                if int(s["TwoPortDeviceIndex"]) == b_idx:
+                    s["TwoPortDeviceIndex"] = a_idx
+            for s in conn.get("SideTwo", []):
+                if int(s["TwoPortDeviceIndex"]) == b_idx:
+                    s["TwoPortDeviceIndex"] = a_idx
+        for p in open_ports:
+            if int(p["TwoPortDeviceIndex"]) == b_idx:
+                p["TwoPortDeviceIndex"] = a_idx
     sym_use = options.get("DeviceSymmetry", {}).get("Use", 0)
     sym_side = options.get("DeviceSymmetry", {}).get("Side", 2)
 
@@ -1086,7 +1112,16 @@ def ExtractSingleS(
     return s_block[j, i]
 
 
-def GSMDraw(f: np.ndarray, sf: list[np.ndarray], sinfo: list[dict[str, Any]], mode_struct: list[tuple[int, int, str, int, int, str, int, int, str]], flag: int = 1, ylabel: str = "|S| (dB)", ylim: tuple[float, float] = (-60.0, 0.0)) -> None:
+def GSMDraw(
+    f: np.ndarray,
+    sf: list[np.ndarray],
+    sinfo: list[dict[str, Any]],
+    mode_struct: list[tuple[int, int, str, int, int, str, int, int, str]],
+    flag: int = 1,
+    ylabel: str = "|S| (dB)",
+    ylim: tuple[float, float] = (-60.0, 0.0),
+    show: bool = True,
+) -> None:
     import matplotlib.pyplot as plt
 
     if flag:
@@ -1107,7 +1142,8 @@ def GSMDraw(f: np.ndarray, sf: list[np.ndarray], sinfo: list[dict[str, Any]], mo
     plt.ylim(*ylim)
     plt.xlabel("Frequency (Hz)")
     plt.ylabel(ylabel)
-    plt.show()
+    if show:
+        plt.show()
 
 
 def RelativePhaseDraw(*args: Any, **kwargs: Any) -> None:

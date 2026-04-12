@@ -3,30 +3,29 @@ clear; clc
 projectRoot = fileparts(mfilename('fullpath'));
 addpath(fullfile(projectRoot, 'lib'));
 
-c       = 299792458;  % speed of light [m/s]
-a       = 0.01905;    % waveguide full width [m]
-b       = 0.009525;   % waveguide full height [m]
-l       = 0.01;       % section length [m]
-Nmodes  = floor(10*sqrt(2*a*b)/(c/(25*10^9)) + 0.5);
+a      = 0.01905;     % waveguide full width [m]
+b      = 0.009525;    % waveguide full height [m]
+Nmodes = 12;          % number of modes
+l      = 0.01;        % section length [m]
 
 %% Defines the TwoPortDevices
 WGS1{1}.D{1}.a = a;
-WGS1{1}.D{1}.b = b;
+WGS1{1}.D{1}.b = b/2;
 WGS1{1}.D{1}.Nmodes = Nmodes;
 WGS1{1}.D{1}.l = l;
-WGS1{1}.D{1}.xo = -0.01905/2-0.001;
-WGS1{1}.D{1}.yo = 0;
+WGS1{1}.D{1}.xo = 0;
+WGS1{1}.D{1}.yo = -0.009525/4;
 WGS1{1}.D{1}.zo = -l;
 
 WGS1{2}.D{1}.a = a;
-WGS1{2}.D{1}.b = b;
+WGS1{2}.D{1}.b = b/2;
 WGS1{2}.D{1}.Nmodes = Nmodes;
 WGS1{2}.D{1}.l = l;
-WGS1{2}.D{1}.xo = 0.01905/2+0.001;
-WGS1{2}.D{1}.yo = 0;
+WGS1{2}.D{1}.xo = 0;
+WGS1{2}.D{1}.yo = 0.009525/4;
 WGS1{2}.D{1}.zo = -l;
 
-WGS1{3}.D{1}.a = 2*a;
+WGS1{3}.D{1}.a = a;
 WGS1{3}.D{1}.b = b;
 WGS1{3}.D{1}.Nmodes = Nmodes;
 WGS1{3}.D{1}.l = l;
@@ -54,19 +53,21 @@ OpenPorts{3}.TwoPortDevicePort = 2;
 %% Defines the Frequency Sweep
 FS.start = 10*10^9;
 FS.end   = 25*10^9;
-FS.N     = 61;
+FS.N     = 51;
 
 %% Defines Connected Ports
 ConnectedPorts = {};
 
-%% Defines Options
+%% Enable structure'symmetry solving
+% Repeats once the Nto1 device by trasversal mirroring at the open ports at
+% side one (N ports) or side two (single port). Use = 0 -> no, = 1 -> yes
 Options.DeviceSymmetry.Use = 0;
 Options.DeviceSymmetry.Side = 2;
 Options.Connections = 0;
 
 %% Enable Device plot
 % 2 = Explodes parts; 1 = shows united parts; 0 = no plot
-DevicePlotType = 0;
+DevicePlotType = 2;
 
 %% Calculus
 [ Sf, Sinfo, WGS1, Nto1, ConnectedPorts, FS, Error ] = ...
@@ -78,26 +79,20 @@ f = FS.f;
 ModeStruct = {{1,1,'h',1,0,'h',1,0,'md'};...
               {2,1,'h',1,0,'h',1,0,'md'};...
               {3,1,'h',1,0,'h',1,0,'md'};...
-              {3,1,'h',2,0,'h',1,0,'md'};...
-              {3,1,'h',3,0,'h',1,0,'md'};...
-              {3,1,'h',4,0,'h',1,0,'md'};...
-              {3,1,'h',5,0,'h',1,0,'md'};...
+              {3,1,'h',1,1,'h',1,0,'md'};...
+              {3,1,'h',1,3,'h',1,0,'md'};...
+              {3,1,'e',1,1,'h',1,0,'md'};...
+              {3,1,'e',1,3,'h',1,0,'md'};...
               };
 
 GSMDraw(f,Sf,Sinfo,ModeStruct,1);
-ylabel('Amplitude [dB]','FontSize',12);
-xlabel('Frequency [Hz]','FontSize',12);
-
-axis([min(f) max(f) -70 0]);
 
 % Load reference full-wave benchmark data when available.
-HFSSh = csvread('HFSSh.csv');
+HFSSe = csvread(fullfile(projectRoot, '..', 'HFSSe.csv'));
 hold on;
-plot(HFSSh(:,1)*10^9,HFSSh(:,2),'k:',...
-    HFSSh(:,1)*10^9,HFSSh(:,3),'r:',...
-    HFSSh(:,1)*10^9,HFSSh(:,4),'g:',...
-    HFSSh(:,1)*10^9,HFSSh(:,5),'b:',...
-    HFSSh(:,1)*10^9,HFSSh(:,6),'y:',...
-    HFSSh(:,1)*10^9,HFSSh(:,7),'m:',...
-    HFSSh(:,1)*10^9,HFSSh(:,8),'c:'...
+plot(HFSSe(:,1)*10^9,HFSSe(:,2),'k:',...
+    HFSSe(:,1)*10^9,HFSSe(:,3),'r:',...
+    HFSSe(:,1)*10^9,HFSSe(:,4),'g:',...
+    HFSSe(:,1)*10^9,HFSSe(:,5),'m:',...
+    HFSSe(:,1)*10^9,HFSSe(:,6),'b:'...
     );

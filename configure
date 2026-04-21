@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Configure script for MM - Modal-Matching Waveguide Solver
+
+echo "Configuring MM project..."
+
+# Check for MATLAB
+if command -v matlab >/dev/null 2>&1; then
+    echo "MATLAB found."
+else
+    echo "Warning: MATLAB not found in PATH. MATLAB scripts may not run."
+fi
+
+# Check for Python
+if command -v python3 >/dev/null 2>&1; then
+    echo "Python 3 found."
+    # Create virtual environment
+    echo "Creating virtual environment in .venv..."
+    python3 -m venv .venv
+    # Activate and install packages
+    source .venv/bin/activate
+    echo "Installing numpy and matplotlib..."
+    pip install numpy matplotlib
+    deactivate
+    echo "Virtual environment set up with numpy and matplotlib."
+else
+    echo "Warning: Python 3 not found in PATH. Python scripts may not run."
+fi
+
+# Set up paths or environment variables if needed
+echo "Configuration complete. You can now run the scripts from the matlab/ or python/ directories."

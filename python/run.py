@@ -49,14 +49,24 @@ SCRIPT_RUNNERS: dict[str, ScriptFn] = {
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run Python MM benchmark scripts")
+    parser = argparse.ArgumentParser(
+        description="Run Python MM benchmark scripts",
+        epilog="""
+Available scripts:
+- BifurcationE: E-plane T-junction (3 ports, 10–25 GHz)
+- BifurcationH: H-plane T-junction (3 ports, 10–25 GHz)
+- Riblet: Riblet broadwall coupler (4 ports, 7–15 GHz)
+- HildebrandHalf: Hildebrand coupler (half, exploits symmetry) (2 ports, 13–15 GHz)
+- HildebrandSemiAuto: Hildebrand coupler (half, explicit assembly) (2 ports, 13–15 GHz)
+- HildebrandFull: Hildebrand coupler (full 4-port, 6 devices) (4 ports, 13–15 GHz)
+
+Aliases (case-insensitive): bifurcatione, bifurcationh, hildebrandhalf, hildebrandsemiauto, hildebrandfull, riblet
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "script",
-        help=(
-            "Script to run. Canonical names: "
-            + ", ".join(CANONICAL_SCRIPT_NAMES)
-            + ". Aliases are case-insensitive."
-        ),
+        help="Script to run (see list above). Canonical names or aliases accepted.",
     )
     parser.add_argument("--no-plot", action="store_true", help="Disable plotting")
     return parser

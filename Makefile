@@ -10,8 +10,9 @@
 # MS_BIB: Bibliography processor (optional, empty by default)
 # MS_FILE: Main LaTeX source file (default: thesis)
 MS_TEX      = pdflatex
-MS_TEXFLAGS ?= -interaction=nonstopmode -file-line-error
-MS_BIB      ?= bibtex
+MS_TEXFLAGS ?= 
+#-interaction=nonstopmode -file-line-error
+MS_BIB      ?= 
 MS_FILE     ?= paper
 
 
